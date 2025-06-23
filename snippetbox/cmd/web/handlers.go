@@ -3,14 +3,15 @@ package main
 import (
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"strconv"
 )
 
-func home(w http.ResponseWriter, r *http.Request) {
+// Меняем сигнатуры обработчика home, чтобы он определялся как метод
+// структуры *application.
+func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		http.NotFound(w, r)
+		app.notFound(w) // Использование помощника notFound()
 		return
 	}
 
@@ -28,7 +29,10 @@ func home(w http.ResponseWriter, r *http.Request) {
 	// ответ: 500 Internal Server Error (Внутренняя ошибка на сервере)
 	ts, err := template.ParseFiles(files...)
 	if err != nil {
-		log.Println(err.Error())
+		// Поскольку обработчик home теперь является методом структуры application
+		// он может получить доступ к логгерам из структуры.
+		// Используем их вместо стандартного логгера от Go.
+		app.serverError(w, err) // Использование помощника serverError()
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -38,23 +42,29 @@ func home(w http.ResponseWriter, r *http.Request) {
 	// возможность отправки динамических данных в шаблон.
 	err = ts.Execute(w, nil)
 	if err != nil {
-		log.Println(err.Error())
+		// Обновляем код для использования логгера-ошибок
+		// из структуры application.
+		app.serverError(w, err) // Использование помощника serverError()
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 
 }
 
-func showSnippet(w http.ResponseWriter, r *http.Request) {
+// Меняем сигнатуру обработчика showSnippet, чтобы он был определен как метод
+// структуры *application
+func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.URL.Query().Get("id")) // извлекаем значение id из URL и преобразуем в int
 	if err != nil || id < 1 {
-		http.NotFound(w, r)
+		app.notFound(w) // Использование помощника notFound()
 		return
 	}
 
 	fmt.Fprintf(w, "snippet with ID %d", id)
 }
 
-func createSnippet(w http.ResponseWriter, r *http.Request) {
+// Меняем сигнатуру обработчика createSnippet, чтобы он определялся как метод
+// структуры *application.
+func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
 	// Используем r.Method для проверки, использует ли запрос метод POST или нет. Обратите внимание,
 	// что http.MethodPost является строкой и содержит текст "POST".
 	if r.Method != http.MethodPost {
@@ -64,7 +74,7 @@ func createSnippet(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Allow", http.MethodPost)
 
 		// Используем функцию http.Error() для отправки кода состояния 405 с соответствующим сообщением.
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		app.clientError(w, http.StatusMethodNotAllowed) // Используем помощник clientError()
 		return
 	}
 
