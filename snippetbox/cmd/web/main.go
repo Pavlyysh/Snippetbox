@@ -42,7 +42,7 @@ func main() {
 	// то есть перед использованием добавьте к нему префикс *. Обратите внимание, что мы используем
 	// функцию log.Printf() для записи логов в журнал работы нашего приложения.
 	log.Printf("start web-server on %s\n", *addr)
-	err := http.ListenAndServe(":4000", mux)
+	err := http.ListenAndServe(*addr, mux)
 	log.Fatal(err)
 }
 
