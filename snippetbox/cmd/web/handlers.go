@@ -17,9 +17,9 @@ func home(w http.ResponseWriter, r *http.Request) {
 	// Инициализируем срез содержащий пути к двум файлам. Обратите внимание, что
 	// файл home.page.tmpl должен быть *первым* файлом в срезе.
 	files := []string{
-		"./ui/html/home.page.html",
-		"./ui/html/base.layout.html",
-		"./ui/html/footer.partial.html",
+		"./ui/html/home.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+		"./ui/html/footer.partial.tmpl",
 	}
 
 	// Используем функцию template.ParseFiles() для чтения файла шаблона.
