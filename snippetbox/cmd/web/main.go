@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 )
 
@@ -20,6 +21,18 @@ func main() {
 	// Если есть ошибки во время извлечения данных - приложение будет остановлено.
 	flag.Parse()
 
+	// Используйте log.New() для создания логгера для записи информационных сообщений. Для этого нужно
+	// три параметра: место назначения для записи логов (os.Stdout), строка
+	// с префиксом сообщения (INFO или ERROR) и флаги, указывающие, какая
+	// дополнительная информация будет добавлена. Обратите внимание, что флаги
+	// соединяются с помощью оператора OR |.
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+
+	// Создаем логгер для записи сообщений об ошибках таким же образом, но используем stderr как
+	// место для записи и используем флаг log.Lshortfile для включения в лог
+	// названия файла и номера строки где обнаружилась ошибка.
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", home)
 	mux.HandleFunc("/snippet", showSnippet)
@@ -29,7 +42,7 @@ func main() {
 	// HTTP-запросы к статическим файлам из папки "./ui/static".
 	// Обратите внимание, что переданный в функцию http.Dir путь
 	// является относительным корневой папке проекта
-	fileServer := http.FileServer(neutredFileSystem{http.Dir("./static")})
+	fileServer := http.FileServer(neutredFileSystem{http.Dir("./ui/static")})
 
 	// Используем функцию mux.Handle() для регистрации обработчика для
 	// всех запросов, которые начинаются с "/static/". Мы убираем
@@ -37,13 +50,24 @@ func main() {
 	mux.Handle("/static", http.NotFoundHandler())
 	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
 
+	// Инициализируем новую структуру http.Server. Мы устанавливаем поля Addr и Handler, так
+	// что сервер использует тот же сетевой адрес и маршруты, что и раньше, и назначаем
+	// поле ErrorLog, чтобы сервер использовал наш логгер
+	// при возникновении проблем.
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errorLog,
+		Handler:  mux,
+	}
+
 	// Значение, возвращаемое функцией flag.String(), является указателем на значение
 	// из флага, а не самим значением. Нам нужно убрать ссылку на указатель
 	// то есть перед использованием добавьте к нему префикс *. Обратите внимание, что мы используем
 	// функцию log.Printf() для записи логов в журнал работы нашего приложения.
-	log.Printf("start web-server on %s\n", *addr)
-	err := http.ListenAndServe(*addr, mux)
-	log.Fatal(err)
+	infoLog.Printf("start web-server on %s\n", *addr)
+	// Вызываем метод ListenAndServe() от нашей новой структуры http.Server
+	err := srv.ListenAndServe()
+	errorLog.Fatal(err)
 }
 
 type neutredFileSystem struct {
