@@ -59,7 +59,7 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "snippet with ID %d", id)
+	fmt.Fprintf(w, "snippet with ID %d\n", id)
 }
 
 // Меняем сигнатуру обработчика createSnippet, чтобы он определялся как метод
@@ -78,5 +78,14 @@ func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte("form for new snippet"))
+	title := "A story about shark"
+	content := "Shark says baby,\nbaby says shark,\nshark again said baby"
+	expires := "7"
+
+	id, err := app.snippets.Insert(title, content, expires)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/snippet?id=%d", id), http.StatusSeeOther)
 }
