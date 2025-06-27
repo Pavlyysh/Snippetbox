@@ -13,7 +13,7 @@ func (app *application) routes() *http.ServeMux {
 	// HTTP-запросы к статическим файлам из папки "./ui/static".
 	// Обратите внимание, что переданный в функцию http.Dir путь
 	// является относительным корневой папке проекта
-	fileServer := http.FileServer(neutredFileSystem{http.Dir("./ui/static")})
+	fileServer := http.FileServer(http.Dir("./ui/static"))
 
 	// Используем функцию mux.Handle() для регистрации обработчика для
 	// всех запросов, которые начинаются с "/static/". Мы убираем

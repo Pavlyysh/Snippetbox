@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"pavlyysh/snippetbox/pkg/models"
 	"strconv"
@@ -22,42 +23,38 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, snippet := range s {
-		fmt.Fprintf(w, "%v\n", snippet)
+	data := &templateData{Snippets: s}
+
+	// Инициализируем срез содержащий пути к двум файлам. Обратите внимание, что
+	// файл home.page.tmpl должен быть *первым* файлом в срезе.
+	files := []string{
+		"./ui/html/home.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+		"./ui/html/footer.partial.tmpl",
 	}
 
-	// // Инициализируем срез содержащий пути к двум файлам. Обратите внимание, что
-	// // файл home.page.tmpl должен быть *первым* файлом в срезе.
-	// files := []string{
-	// 	"./ui/html/home.page.tmpl",
-	// 	"./ui/html/base.layout.tmpl",
-	// 	"./ui/html/footer.partial.tmpl",
-	// }
+	// Используем функцию template.ParseFiles() для чтения файла шаблона.
+	// Если возникла ошибка, мы запишем детальное сообщение ошибки и
+	// используя функцию http.Error() мы отправим пользователю
+	// ответ: 500 Internal Server Error (Внутренняя ошибка на сервере)
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		// Поскольку обработчик home теперь является методом структуры application
+		// он может получить доступ к логгерам из структуры.
+		// Используем их вместо стандартного логгера от Go.
+		app.serverError(w, err) // Использование помощника serverError()
+		return
+	}
 
-	// // Используем функцию template.ParseFiles() для чтения файла шаблона.
-	// // Если возникла ошибка, мы запишем детальное сообщение ошибки и
-	// // используя функцию http.Error() мы отправим пользователю
-	// // ответ: 500 Internal Server Error (Внутренняя ошибка на сервере)
-	// ts, err := template.ParseFiles(files...)
-	// if err != nil {
-	// 	// Поскольку обработчик home теперь является методом структуры application
-	// 	// он может получить доступ к логгерам из структуры.
-	// 	// Используем их вместо стандартного логгера от Go.
-	// 	app.serverError(w, err) // Использование помощника serverError()
-	// 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	// 	return
-	// }
-
-	// // Затем мы используем метод Execute() для записи содержимого
-	// // шаблона в тело HTTP ответа. Последний параметр в Execute() предоставляет
-	// // возможность отправки динамических данных в шаблон.
-	// err = ts.Execute(w, nil)
-	// if err != nil {
-	// 	// Обновляем код для использования логгера-ошибок
-	// 	// из структуры application.
-	// 	app.serverError(w, err) // Использование помощника serverError()
-	// 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	// }
+	// Затем мы используем метод Execute() для записи содержимого
+	// шаблона в тело HTTP ответа. Последний параметр в Execute() предоставляет
+	// возможность отправки динамических данных в шаблон.
+	err = ts.Execute(w, data)
+	if err != nil {
+		// Обновляем код для использования логгера-ошибок
+		// из структуры application.
+		app.serverError(w, err) // Использование помощника serverError()
+	}
 
 }
 
@@ -83,7 +80,31 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "%v", s)
+	// Создаем экземпляр структуры templateData, содержащей данные заметки.
+	data := &templateData{Snippet: s}
+
+	// Инициализируем срез, содержащий путь к файлу show.page.tmpl
+	// Добавив еще базовый шаблон и часть футера, который мы сделали ранее.
+	files := []string{
+		"./ui/html/show.page.tmpl",
+		"./ui/html/base.layout.tmpl",
+		"./ui/html/footer.partial.tmpl",
+	}
+
+	// Парсинг файлов шаблонов...
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// А затем выполняем их. Обратите внимание на передачу заметки с данными
+	// (структура models.Snippet) в качестве последнего параметра.
+	err = ts.Execute(w, data)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
 }
 
 // Меняем сигнатуру обработчика createSnippet, чтобы он определялся как метод

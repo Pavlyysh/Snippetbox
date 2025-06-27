@@ -3,19 +3,20 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"pavlyysh/snippetbox/pkg/models/mysql"
 
 	_ "github.com/go-sql-driver/mysql" // Новый импорт
 )
 
 type application struct {
-	errorLog *log.Logger
-	infoLog  *log.Logger
-	snippets *mysql.SnippetModel
+	errorLog      *log.Logger
+	infoLog       *log.Logger
+	snippets      *mysql.SnippetModel
+	templateCache map[string]*template.Template
 }
 
 func main() {
@@ -58,11 +59,18 @@ func main() {
 	// Подробнее про defer: https://golangs.org/errors#defer
 	defer db.Close()
 
+	// Инициализируем новый кэш шаблона...
+	templateCache, err := newTemplateCache("./ui/html/")
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
 	// Инициализируем новую структуру с зависимостями приложения.
 	app := &application{
-		errorLog: errorLog,
-		infoLog:  infoLog,
-		snippets: &mysql.SnippetModel{DB: db},
+		errorLog:      errorLog,
+		infoLog:       infoLog,
+		snippets:      &mysql.SnippetModel{DB: db},
+		templateCache: templateCache,
 	}
 
 	// Инициализируем новую структуру http.Server. Мы устанавливаем поля Addr и Handler, так
@@ -85,36 +93,36 @@ func main() {
 	errorLog.Fatal(err)
 }
 
-type neutredFileSystem struct {
-	fs http.FileSystem
-}
+// type neutredFileSystem struct {
+// 	fs http.FileSystem
+// }
 
-func (nfs neutredFileSystem) Open(path string) (http.File, error) {
-	f, err := nfs.fs.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
+// func (nfs neutredFileSystem) Open(path string) (http.File, error) {
+// 	f, err := nfs.fs.Open(path)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer f.Close()
 
-	s, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
+// 	s, err := f.Stat()
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	if s.IsDir() {
-		index := filepath.Join(path, "index.html")
-		if _, err := nfs.fs.Open(index); err != nil {
-			closeErr := f.Close()
-			if closeErr != nil {
-				return nil, closeErr
-			}
+// 	if s.IsDir() {
+// 		index := filepath.Join(path, "index.html")
+// 		if _, err := nfs.fs.Open(index); err != nil {
+// 			closeErr := f.Close()
+// 			if closeErr != nil {
+// 				return nil, closeErr
+// 			}
 
-			return nil, err
-		}
-	}
+// 			return nil, err
+// 		}
+// 	}
 
-	return f, nil
-}
+// 	return f, nil
+// }
 
 // Функция openDB() обертывает sql.Open() и возвращает пул соединений sql.DB
 // для заданной строки подключения (DSN).
